@@ -503,7 +503,8 @@
           const response = await fetch(googleSheetUrl);
           const data = await response.json();
           if (Array.isArray(data) && data.length > 0) {
-            tasks = data;
+            // 'ID'나 '상태' 같은 헤더 텍스트가 데이터로 잘못 들어오는 것 방지
+            tasks = data.filter(t => t && t.id && t.id !== 'ID' && t.status !== '상태' && t.title !== '요청 제목' && t.title.trim() !== '');
             saveLocalTasks();
           } else {
             // 시트가 비어있으면 초기 데이터 넣기
@@ -529,7 +530,12 @@
     function loadLocalTasks() {
       const saved = localStorage.getItem('office_tasks_data');
       if (saved) {
-        try { tasks = JSON.parse(saved); } catch (e) { tasks = getInitialDummyData(); }
+        try {
+          const parsed = JSON.parse(saved);
+          tasks = Array.isArray(parsed) ? parsed.filter(t => t && t.id && t.id !== 'ID' && t.status !== '상태' && t.title !== '요청 제목') : getInitialDummyData();
+        } catch (e) {
+          tasks = getInitialDummyData();
+        }
       } else {
         tasks = getInitialDummyData();
         saveLocalTasks();
@@ -1045,12 +1051,16 @@
     }
 
     function exportToExcel() {
-      if (tasks.length === 0) {
+      // 'ID', '상태' 같은 헤더 찌꺼기 제외
+      const validTasks = tasks.filter(t => t && t.id && t.id !== 'ID' && t.status !== '상태' && t.title && t.title !== '요청 제목');
+
+      if (validTasks.length === 0) {
         alert('다운로드할 업무 데이터가 없습니다.');
         return;
       }
 
-      const excelRows = tasks.map((t, idx) => {
+      // 엑셀용 데이터 정제
+      const excelRows = validTasks.map((t, idx) => {
         const dday = calculateDDay(t.dueDate);
         const status = getStatusInfo(t.status);
 
